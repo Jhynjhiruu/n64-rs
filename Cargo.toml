@@ -7,7 +7,7 @@ edition = "2021"
 aes_crypto = "1.2.1"
 good_memory_allocator = { version = "0.1.7", default-features = false, optional = true }
 #rijndael = { version = "0.1.0", path = "../rijndael", default-features = false }
-rijndael = { version = "0.1.0", git = "https://github.com/Jhynjhiruu/rijndael.git", default-feature = false }
+rijndael = { version = "0.1.0", git = "https://github.com/Jhynjhiruu/rijndael.git", default-features = false }
 volcell = "1.0.0"
 
 [features]
