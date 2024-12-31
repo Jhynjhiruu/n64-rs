@@ -31,13 +31,15 @@ extern "C" {
     fn _get_id(id: *mut u32) -> c_int;
     fn _launch_setup(bundle: *mut c_void, crls: *mut c_void, recrypt_list: *mut c_void) -> c_int;
     fn _launch(address: *const c_void) -> c_int;
+    fn _advance_ticket_window() -> c_int;
     fn _exit() -> !;
-    fn _keep_alive();
+    fn _keep_alive() -> c_int;
 }
 
 skc_call!(_get_id, 0);
 skc_call!(_launch_setup, 1);
 skc_call!(_launch, 2);
+skc_call!(_advance_ticket_window, 11);
 skc_call!(_exit, 13);
 skc_call!(_keep_alive, 14);
 
@@ -73,10 +75,24 @@ pub fn launch(address: *const ()) -> Result<()> {
     }
 }
 
+pub fn advance_ticket_window() -> Result<()> {
+    let status = unsafe { _advance_ticket_window() };
+    if status < 0 {
+        Err(())
+    } else {
+        Ok(())
+    }
+}
+
 pub fn exit() -> ! {
     unsafe { _exit() }
 }
 
-pub fn keep_alive() {
-    unsafe { _keep_alive() }
+pub fn keep_alive() -> Result<()> {
+    let status = unsafe { _keep_alive() };
+    if status < 0 {
+        Err(())
+    } else {
+        Ok(())
+    }
 }

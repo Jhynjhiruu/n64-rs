@@ -8,22 +8,34 @@
 #![feature(const_maybe_uninit_zeroed)]
 #![feature(const_trait_impl)]
 #![feature(naked_functions)]
+#![feature(panic_info_message)]
+#![feature(generic_const_exprs)]
+#![feature(slice_flatten)]
 
 use core::arch::asm;
 use core::ops::Range;
 
-//extern crate alloc;
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
+pub mod aes;
 pub mod boot;
+pub mod card;
 pub mod cop0;
 pub mod joybus;
 pub mod mi;
-//mod n64_alloc;
+#[cfg(feature = "alloc")]
+mod n64_alloc;
 pub mod pi;
+pub mod recrypt;
+pub mod ri;
 pub mod si;
 pub mod skapi;
 pub mod text;
+pub mod types;
+pub mod usb;
 pub mod util;
+pub mod v2;
 pub mod vi;
 
 #[macro_export]

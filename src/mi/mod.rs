@@ -8,6 +8,7 @@ pub const INTERRUPT: u32 = MI_BASE + 0x08;
 pub const MASK: u32 = MI_BASE + 0x0C;
 
 pub const BB_SECURE_EXCEPTION: u32 = MI_BASE + 0x14;
+pub const BB_SECURE_TIMER: u32 = MI_BASE + 0x18;
 
 pub const BB_RANDOM: u32 = MI_BASE + 0x2C;
 
@@ -20,11 +21,18 @@ const MI_INTERRUPT: *mut u32 = io_ptr!(mut INTERRUPT);
 const MI_MASK: *mut u32 = io_ptr!(mut MASK);
 
 const MI_BB_SECURE_EXCEPTION: *mut u32 = io_ptr!(mut BB_SECURE_EXCEPTION);
+const MI_BB_SECURE_TIMER: *mut u32 = io_ptr!(mut BB_SECURE_TIMER);
 
 const MI_BB_RANDOM: *mut u32 = io_ptr!(mut BB_RANDOM);
 
 const MI_BB_INTERRUPT: *mut u32 = io_ptr!(mut BB_INTERRUPT);
 const MI_BB_MASK: *mut u32 = io_ptr!(mut BB_MASK);
+
+mod bb_interrupt;
+mod interrupt;
+
+pub use bb_interrupt::*;
+pub use interrupt::*;
 
 pub struct Mi;
 
@@ -51,6 +59,10 @@ impl Mi {
 
     pub fn bb_secure_exception(&self) -> u32 {
         unsafe { MI_BB_SECURE_EXCEPTION.read_volatile() }
+    }
+
+    pub fn bb_secure_timer(&self) -> u32 {
+        unsafe { MI_BB_SECURE_TIMER.read_volatile() }
     }
 
     pub fn bb_random(&self) -> u32 {
@@ -85,6 +97,10 @@ impl Mi {
         unsafe { MI_BB_SECURE_EXCEPTION.write_volatile(val) }
     }
 
+    pub fn set_bb_secure_timer(&mut self, val: u32) {
+        unsafe { MI_BB_SECURE_TIMER.write_volatile(val) }
+    }
+
     pub fn set_bb_random(&mut self, val: u32) {
         unsafe { MI_BB_RANDOM.write_volatile(val) }
     }
@@ -95,6 +111,14 @@ impl Mi {
 
     pub fn set_bb_mask(&mut self, val: u32) {
         unsafe { MI_BB_MASK.write_volatile(val) }
+    }
+
+    pub fn unknown(&self, offset: u32) -> u32 {
+        unsafe { io_ptr!(mut MI_BASE + offset).read_volatile() }
+    }
+
+    pub fn set_unknown(&mut self, offset: u32, val: u32) {
+        unsafe { io_ptr!(mut MI_BASE + offset).write_volatile(val) }
     }
 }
 

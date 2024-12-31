@@ -7,13 +7,13 @@ use font::*;
 #[derive(Clone, Copy)]
 pub struct Colour(u32);
 
-impl const From<u32> for Colour {
+impl From<u32> for Colour {
     fn from(value: u32) -> Self {
         Self(value)
     }
 }
 
-impl const From<Colour> for u32 {
+impl From<Colour> for u32 {
     fn from(val: Colour) -> Self {
         val.0
     }

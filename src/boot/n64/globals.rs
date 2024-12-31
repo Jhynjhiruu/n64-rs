@@ -29,10 +29,6 @@ extern "C" {
     pub static mut __osBbAuxDataLimit: VolatileCell<u32>;
 }
 
-pub fn is_bbplayer() -> bool {
-    unsafe { __osBbIsBb.read() != 0 }
-}
-
 pub(super) fn setup_globals() {
     let mi = mi();
     let pi = pi();
