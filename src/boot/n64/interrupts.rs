@@ -1,7 +1,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 
 use core::{
-    arch::asm,
+    arch::naked_asm,
     ffi::c_void,
     hint::unreachable_unchecked,
     mem::size_of,
@@ -9,12 +9,7 @@ use core::{
 };
 
 use crate::{
-    cop0::{cop0, Cause, DiagStatus, ExceptionCode, ExecutionMode, Status},
-    data_cache_writeback, instruction_cache_invalidate,
-    mi::{mi, BBInterrupt, Interrupt},
-    pi::pi,
-    si::si,
-    vi::vi,
+    cop0::{cop0, Cause, DiagStatus, ExceptionCode, ExecutionMode, Status}, data_cache_writeback, instruction_cache_invalidate, mi::{mi, BBInterrupt, Interrupt}, pi::pi, si::si, types::Align8, vi::vi
 };
 
 use super::is_bbplayer;
@@ -356,6 +351,7 @@ extern "C" fn int_handler() {
         if cause & Cause::interrupt_pending(Cause::HW2) != 0 {
             // prenmi
             let im = im();
+            im.set_prenmi(false);
 
             #[cfg(not(debug_assertions))]
             let fun = im.prenmi_fn.unwrap();
@@ -522,11 +518,13 @@ const COP0_START: usize = HILO_START + (size_of::<u64>() * NUM_HILO);
 #[link_section = ".text"]
 #[naked]
 unsafe extern "C" fn _int_handler() {
-    asm!(
+    naked_asm!(
         ".set noreorder                  ",
         "  addiu $sp, -{diff}            ",
         "                                ",
+        ".set noat                       ",
         "  sd $1,  ({gprs} +  1 * 8)($sp)", // at
+        ".set at                         ",
         "  sd $2,  ({gprs} +  2 * 8)($sp)", // v0
         "  sd $3,  ({gprs} +  3 * 8)($sp)", // v1
         "  sd $4,  ({gprs} +  4 * 8)($sp)", // a0
@@ -619,7 +617,9 @@ unsafe extern "C" fn _int_handler() {
         "  ld $4,  ({gprs} +  4 * 8)($sp)", // a0
         "  ld $3,  ({gprs} +  3 * 8)($sp)", // v1
         "  ld $2,  ({gprs} +  2 * 8)($sp)", // v0
+        ".set noat                       ",
         "  ld $1,  ({gprs} +  1 * 8)($sp)", // at
+        ".set at                         ",
         "                                ",
         "  addiu $sp, {diff}             ",
         "                                ",
@@ -634,7 +634,6 @@ unsafe extern "C" fn _int_handler() {
         ints_exl = const (Status::interrupt_enable(true) | Status::exception(true)),
         handler = sym int_handler,
         //update_interrupts = sym update_interrupts,
-        options(noreturn)
     )
 }
 
@@ -642,13 +641,12 @@ unsafe extern "C" fn _int_handler() {
 #[naked]
 #[no_mangle]
 unsafe extern "C" fn int_handler_entry() -> ! {
-    asm!(
+    naked_asm!(
         "  .set noreorder",
         "    j {handler} ",
         "     nop        ",
         "  .set reorder  ",
         handler = sym _int_handler,
-        options(noreturn)
     )
 }
 
@@ -693,14 +691,14 @@ pub unsafe fn setup_ints() {
     let len = end - start;
 
     for entry in (0x80000000u32..=0x80000180).step_by(0x80) {
-        let dst = from_raw_parts_mut::<[u8]>(entry as *mut (), len)
+        let dst = from_raw_parts_mut::<Align8<[u8]>>(entry as *mut (), len)
             .as_mut()
             .expect("should never be null");
 
         let pi: &mut crate::pi::Pi = pi();
         pi.read_into(dst, start as _);
 
-        instruction_cache_invalidate(dst);
+        instruction_cache_invalidate(&dst.0);
     }
 
     let im = im();

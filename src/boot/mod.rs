@@ -17,6 +17,7 @@ pub use sk::launch_app;
 
 #[cfg(feature = "alloc")]
 use crate::n64_alloc::ALLOCATOR;
+use crate::{data_cache_invalidate, data_cache_writeback_raw};
 
 extern "Rust" {
     fn main() -> !;
@@ -56,12 +57,13 @@ unsafe fn clear_bss() {
     let start = addr_of_mut!(__bss_start).cast::<u8>();
     let size = addr_of!(__bss_size).addr();
     start.write_bytes(0, size);
+    data_cache_writeback_raw(start.addr(), start.addr() + size);
 }
 
 pub fn is_bbplayer() -> bool {
     #[cfg(not(feature = "sk"))]
     unsafe {
-        globals::__osBbIsBb.read() != 0
+        (&raw const globals::__osBbIsBb).read_volatile() != 0
     }
     #[cfg(feature = "sk")]
     true

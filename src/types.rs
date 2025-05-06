@@ -390,3 +390,9 @@ impl IndexMut<u32> for RecryptList {
         self.get_mut(index).unwrap()
     }
 }
+
+#[repr(align(8))]
+pub struct Align8<T: ?Sized>(pub T);
+
+#[repr(align(64))]
+pub struct Align64<T: ?Sized>(pub T);

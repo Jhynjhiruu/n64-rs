@@ -6,6 +6,7 @@ use core::{
 
 #[cfg(not(feature = "sk"))]
 use crate::boot::globals::osRomBase;
+use crate::types::Align8;
 use crate::util::{k0_to_phys, k0_to_phys_mut, k0_to_phys_u32, k0_to_phys_usize};
 use crate::{data_cache_invalidate, data_cache_writeback, io_ptr};
 
@@ -66,28 +67,25 @@ impl Pi {
     }
 
     #[cfg(not(feature = "sk"))]
-    pub fn write<T>(&mut self, data: &[T], addr: u32) {
-        let len = size_of_val(data);
+    #[track_caller]
+    pub fn write<T>(&mut self, data: &Align8<[T]>, addr: u32) {
+        let len = size_of_val(&data.0);
 
         assert!(
-            data.as_ptr().addr() % 8 == 0,
-            "RAM address must be 8-byte aligned, otherwise behaviour is not well-defined"
-        );
-        assert!(
             addr % 2 == 0,
-            "PI address must be 2-byte aligned, otherwise behaviour is not well-defined"
+            "PI address ({addr:08X}) must be 2-byte aligned, otherwise behaviour is not well-defined"
         );
         assert!(
             len % 2 == 0,
-            "Length must be a multiple of 2, otherwise behaviour is not well-defined"
+            "Length ({len:X}) must be a multiple of 2, otherwise behaviour is not well-defined"
         );
 
-        data_cache_writeback(data);
+        data_cache_writeback(&data.0);
 
         self.wait();
 
-        self.set_dram_addr(k0_to_phys(data.as_ptr()).addr() as _);
-        self.set_cart_addr(k0_to_phys_u32(addr | unsafe { osRomBase.read() }));
+        self.set_dram_addr(k0_to_phys(data.0.as_ptr()).addr() as _);
+        self.set_cart_addr(addr);
         self.set_rd_len((len - 1) as _);
 
         self.wait();
@@ -95,62 +93,58 @@ impl Pi {
 
     #[cfg(not(feature = "sk"))]
     pub fn read<T: Default, const N: usize>(&mut self, addr: u32) -> [T; N] {
-        let mut buf = from_fn(|_| Default::default());
+        let mut buf = Align8(from_fn(|_| Default::default()));
 
         self.read_into(&mut buf, addr);
 
-        buf
+        buf.0
     }
 
     #[cfg(not(feature = "sk"))]
-    pub fn read_into<T>(&mut self, data: &mut [T], addr: u32) {
-        let len = size_of_val(data);
+    #[track_caller]
+    pub fn read_into<T>(&mut self, data: &mut Align8<[T]>, addr: u32) {
+        let len = size_of_val(&data.0);
+
+        data_cache_invalidate(&data.0);
 
         assert!(
-            data.as_ptr().addr() % 8 == 0,
-            "RAM address must be 8-byte aligned, otherwise behaviour is not well-defined"
-        );
-        assert!(
             addr % 2 == 0,
-            "PI address must be 2-byte aligned, otherwise behaviour is not well-defined"
+            "PI address ({addr:08X}) must be 2-byte aligned, otherwise behaviour is not well-defined"
         );
         assert!(
             len % 2 == 0,
-            "Length must be a multiple of 2, otherwise behaviour is not well-defined"
+            "Length ({len:X}) must be a multiple of 2, otherwise behaviour is not well-defined"
         );
 
         self.wait();
 
-        self.set_dram_addr(k0_to_phys_mut(data.as_mut_ptr()).addr() as _);
-        self.set_cart_addr(k0_to_phys_u32(addr | unsafe { osRomBase.read() }));
+        self.set_dram_addr(k0_to_phys_mut(data.0.as_mut_ptr()).addr() as _);
+        self.set_cart_addr(addr);
         self.set_wr_len((len - 1) as _);
 
         self.wait();
 
-        data_cache_invalidate(data)
+        data_cache_invalidate(&data.0)
     }
 
-    pub fn bb_write<T>(&mut self, data: &[T], addr: u32) {
-        let len = size_of_val(data);
+    #[track_caller]
+    pub fn bb_write<T>(&mut self, data: &Align8<[T]>, addr: u32) {
+        let len = size_of_val(&data.0);
 
         assert!(
-            data.as_ptr().addr() % 8 == 0,
-            "RAM address must be 8-byte aligned, otherwise behaviour is not well-defined"
-        );
-        assert!(
             addr % 2 == 0,
-            "PI address must be 2-byte aligned, otherwise behaviour is not well-defined"
+            "PI address ({addr:08X}) must be 2-byte aligned, otherwise behaviour is not well-defined"
         );
         assert!(
             len % 2 == 0,
-            "Length must be a multiple of 2, otherwise behaviour is not well-defined"
+            "Length ({len:X}) must be a multiple of 2, otherwise behaviour is not well-defined"
         );
 
-        data_cache_writeback(data);
+        data_cache_writeback(&data.0);
 
         self.wait();
 
-        self.set_dram_addr(k0_to_phys(data.as_ptr()).addr() as _);
+        self.set_dram_addr(k0_to_phys(data.0.as_ptr()).addr() as _);
         self.set_cart_addr(addr);
         self.set_bb_rd_len((len - 1) as _);
 
@@ -158,38 +152,35 @@ impl Pi {
     }
 
     pub fn bb_read<T: Default, const N: usize>(&mut self, addr: u32) -> [T; N] {
-        let mut buf = from_fn(|_| Default::default());
+        let mut buf = Align8(from_fn(|_| Default::default()));
 
         self.bb_read_into(&mut buf, addr);
 
-        buf
+        buf.0
     }
 
-    pub fn bb_read_into<T>(&mut self, data: &mut [T], addr: u32) {
-        let len = size_of_val(data);
+    #[track_caller]
+    pub fn bb_read_into<T>(&mut self, data: &mut Align8<[T]>, addr: u32) {
+        let len = size_of_val(&data.0);
 
         assert!(
-            data.as_ptr().addr() % 8 == 0,
-            "RAM address must be 8-byte aligned, otherwise behaviour is not well-defined"
-        );
-        assert!(
             addr % 2 == 0,
-            "PI address must be 2-byte aligned, otherwise behaviour is not well-defined"
+            "PI address ({addr:08X}) must be 2-byte aligned, otherwise behaviour is not well-defined"
         );
         assert!(
             len % 2 == 0,
-            "Length must be a multiple of 2, otherwise behaviour is not well-defined"
+            "Length ({len:X}) must be a multiple of 2, otherwise behaviour is not well-defined"
         );
 
         self.wait();
 
-        self.set_dram_addr(k0_to_phys_mut(data.as_mut_ptr()).addr() as _);
+        self.set_dram_addr(k0_to_phys_mut(data.0.as_mut_ptr()).addr() as _);
         self.set_cart_addr(addr);
         self.set_bb_wr_len((len - 1) as _);
 
         self.wait();
 
-        data_cache_invalidate(data)
+        data_cache_invalidate(&data.0)
     }
 
     pub fn dram_addr(&self) -> u32 {

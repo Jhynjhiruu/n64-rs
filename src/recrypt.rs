@@ -10,7 +10,7 @@ impl RecryptList {
     pub fn decrypt_entry(&self, index: u32) -> RecryptListEntry {
         let iv = array::from_fn::<_, 4, _>(|i| unsafe { virage2.read() }.bbid + i as u32)
             .map(|e| e.to_be_bytes())
-            .flatten()
+            .as_flattened()
             .try_into()
             .unwrap();
 
@@ -39,7 +39,7 @@ impl RecryptList {
     pub fn add_entry(&mut self, entry: &RecryptListEntry, index: u32) {
         let iv = array::from_fn::<_, 4, _>(|i| unsafe { virage2.read() }.bbid + i as u32)
             .map(|e| e.to_be_bytes())
-            .flatten()
+            .as_flattened()
             .try_into()
             .unwrap();
 

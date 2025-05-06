@@ -1,5 +1,6 @@
 use core::{arch::asm, hint::black_box, mem::MaybeUninit, num::Wrapping};
 
+use crate::types::Align8;
 use crate::{
     data_cache_invalidate, data_cache_writeback, io_ptr,
     util::{k0_to_phys, k0_to_phys_mut},
@@ -46,12 +47,20 @@ impl Si {
     }
 
     #[cfg(not(feature = "sk"))]
-    pub fn write(&mut self, data: &[u8; 64]) {
-        data_cache_writeback(data);
+    #[track_caller]
+    pub fn write(&mut self, data: &Align8<[u8; 64]>) {
+        data_cache_writeback(&data.0);
+
+        let addr = data.0.as_ptr().addr();
+
+        assert!(
+            addr % 8 == 0,
+            "RAM address ({addr:08X}) must be 8-byte aligned, otherwise behaviour is not well-defined"
+        );
 
         self.wait();
 
-        self.set_dram_addr(k0_to_phys(data.as_ptr()).addr() as _);
+        self.set_dram_addr(k0_to_phys(data.0.as_ptr()).addr() as _);
         self.set_pif_ad_wr64b(Self::PIF_RAM_START);
 
         self.wait();
@@ -114,21 +123,29 @@ impl Si {
     }*/
 
     #[cfg(not(feature = "sk"))]
+    #[track_caller]
     pub fn read(&mut self) -> [u8; 64] {
-        let mut buf = [0xA5; 64];
+        let mut buf = Align8([0xA5; 64]);
 
-        //data_cache_writeback(&buf);
+        data_cache_invalidate(&buf.0);
+
+        let addr = buf.0.as_ptr().addr();
+
+        assert!(
+            addr % 8 == 0,
+            "RAM address ({addr:08X}) must be 8-byte aligned, otherwise behaviour is not well-defined"
+        );
 
         self.wait();
 
-        self.set_dram_addr(k0_to_phys_mut(buf.as_mut_ptr()).addr() as _);
+        self.set_dram_addr(k0_to_phys_mut(buf.0.as_mut_ptr()).addr() as _);
         self.set_pif_ad_rd64b(Self::PIF_RAM_START);
 
         self.wait();
 
-        data_cache_invalidate(&buf);
+        data_cache_invalidate(&buf.0);
 
-        buf
+        buf.0
     }
 
     /*#[cfg(feature = "sk")]

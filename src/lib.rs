@@ -1,22 +1,14 @@
 #![no_std]
 #![no_main]
 #![feature(asm_experimental_arch)]
-#![feature(asm_const)]
 #![feature(ptr_metadata)]
-#![feature(strict_provenance)]
 #![feature(ptr_as_uninit)]
-#![feature(const_maybe_uninit_zeroed)]
 #![feature(const_trait_impl)]
 #![feature(naked_functions)]
-#![feature(panic_info_message)]
 #![feature(generic_const_exprs)]
-#![feature(slice_flatten)]
 
 use core::arch::asm;
 use core::ops::Range;
-
-#[cfg(feature = "alloc")]
-extern crate alloc;
 
 pub mod aes;
 pub mod boot;
@@ -77,6 +69,12 @@ pub fn data_cache_writeback<T>(data: &[T]) {
     let Range { start, end } = data.as_ptr_range();
 
     for i in (start.addr()..end.addr()).step_by(0x10) {
+        cache!(data, 6, i);
+    }
+}
+
+pub fn data_cache_writeback_raw(start: usize, end: usize) {
+    for i in (start..end).step_by(0x10) {
         cache!(data, 6, i);
     }
 }

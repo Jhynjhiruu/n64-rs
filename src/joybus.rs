@@ -3,6 +3,7 @@ use core::num::Wrapping;
 use crate::boot::is_bbplayer;
 use crate::pi::{pi, LedValue};
 use crate::si::Si;
+use crate::types::Align8;
 
 #[derive(Clone, Copy)]
 enum JoybusCommand {
@@ -223,7 +224,7 @@ impl ControllerData {
 impl Si {
     #[cfg(not(feature = "sk"))]
     pub fn query_controllers(&mut self) -> [ControllerStatus; 4] {
-        let packet = make_joybus_packet_mult(JoybusCommand::Info);
+        let packet = Align8(make_joybus_packet_mult(JoybusCommand::Info));
 
         self.write(&packet);
 
@@ -255,7 +256,7 @@ impl Si {
 
     #[cfg(not(feature = "sk"))]
     pub fn read_controllers(&mut self) -> [Result<Option<ControllerData>, ()>; 4] {
-        let packet = make_joybus_packet_mult(JoybusCommand::ReadState);
+        let packet = Align8(make_joybus_packet_mult(JoybusCommand::ReadState));
 
         self.write(&packet);
 
@@ -287,18 +288,24 @@ impl Si {
 
     #[cfg(not(feature = "sk"))]
     pub fn txrx(&mut self, data: &[u8], mut out_buf: Option<&mut [u8]>) -> usize {
+        use crate::cop0::cop0;
+
+        let cop0 = cop0();
+
+        cop0.disable_interrupts();
+
         let (data_offset, count_offset) = if is_bbplayer() { (20, 21) } else { (22, 23) };
 
         let mut out_index = 0;
 
         for byte in data {
             self.tx_index += 1;
-            let packet = make_joybus_packet([
+            let packet = Align8(make_joybus_packet([
                 JoybusCommand::Info,
                 JoybusCommand::Info,
                 JoybusCommand::TxRx(*byte, self.tx_index.0),
                 JoybusCommand::Info,
-            ]);
+            ]));
 
             self.write(&packet);
 
@@ -315,12 +322,12 @@ impl Si {
 
         if let Some(ref mut out) = out_buf {
             while out_index < out.len() {
-                let packet = make_joybus_packet([
+                let packet = Align8(make_joybus_packet([
                     JoybusCommand::Info,
                     JoybusCommand::Info,
                     JoybusCommand::TxRx(0, self.tx_index.0),
                     JoybusCommand::Info,
-                ]);
+                ]));
 
                 self.write(&packet);
 
@@ -335,6 +342,8 @@ impl Si {
                 out_index += 1;
             }
         }
+
+        cop0.enable_interrupts();
 
         out_index
     }

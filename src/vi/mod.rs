@@ -91,6 +91,12 @@ where
 static mut FRAMEBUFFER: Framebuffer<WIDTH, HEIGHT, 2, u32> =
     unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
 
+pub enum Mode {
+    PAL50,
+    PAL60,
+    NTSC,
+}
+
 impl Vi {
     const fn new() -> Self {
         Self {
@@ -124,8 +130,8 @@ impl Vi {
 
     #[cfg(any(not(feature = "sk"), feature = "sk_vi"))]
     pub fn wait_vsync(&self) {
-        while self.v_current() >> 1 != 1 {}
-        while self.v_current() >> 1 == 1 {}
+        while (self.v_current() >> 1) & 0x1FF != 1 {}
+        while (self.v_current() >> 1) & 0x1FF == 1 {}
     }
 
     pub fn ctrl(&self) -> u32 {
@@ -364,7 +370,7 @@ impl Vi {
     }
 
     #[cfg(any(not(feature = "sk"), feature = "sk_vi"))]
-    pub fn init(&mut self) {
+    pub fn init(&mut self, mode: Mode) {
         self.set_ctrl(
             Ctrl::dedither_enable(true)
                 | Ctrl::pixel_advance(if is_bbplayer() { 1 } else { 3 })
@@ -383,16 +389,34 @@ impl Vi {
         self.set_width(WIDTH as _);
         self.set_v_intr(2);
 
-        self.set_burst(
-            Burst::burst_start(62)
-                | Burst::vsync_width(5)
-                | Burst::burst_width(34)
-                | Burst::hsync_width(57),
-        );
-        self.set_v_sync(525);
-        self.set_h_sync(HSync::leap(0) | HSync::h_sync(3093));
-        self.set_h_sync_leap(HSyncLeap::leap_a(3093) | HSyncLeap::leap_b(3093));
-        self.set_h_video(Video::start(108) | Video::end(748));
+        match mode {
+            Mode::PAL50 => todo!(),
+            Mode::PAL60 => {
+                self.set_burst(
+                    Burst::burst_start(69)
+                        | Burst::vsync_width(4)
+                        | Burst::burst_width(30)
+                        | Burst::hsync_width(58),
+                );
+                self.set_v_sync(519);
+                self.set_h_sync(HSync::leap(23) | HSync::h_sync(3177));
+                self.set_h_sync_leap(HSyncLeap::leap_a(3183) | HSyncLeap::leap_b(3181));
+                self.set_h_video(Video::start(128) | Video::end(768));
+            }
+            Mode::NTSC => {
+                self.set_burst(
+                    Burst::burst_start(62)
+                        | Burst::vsync_width(5)
+                        | Burst::burst_width(34)
+                        | Burst::hsync_width(57),
+                );
+                self.set_v_sync(525);
+                self.set_h_sync(HSync::leap(0) | HSync::h_sync(3093));
+                self.set_h_sync_leap(HSyncLeap::leap_a(3093) | HSyncLeap::leap_b(3093));
+                self.set_h_video(Video::start(108) | Video::end(748));
+            }
+        }
+
         self.set_v_video(Video::start(37) | Video::end(511));
         self.set_v_burst(Video::start(14) | Video::end(516));
         self.set_x_scale(
